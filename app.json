@@ -1,29 +1,67 @@
 {
   "expo": {
-    "name": "hawthorne",
-    "slug": "snack-03b0daf6-5e5c-475a-bf47-f22b0b2d0214",
+    "name": "Hawthorne",
+    "slug": "hawthorne",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.hawthorne",
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch"],
+        "NSContactsUsageDescription": "Hawthorne needs access to your contacts to add accountability partners.",
+        "NSCameraUsageDescription": "Hawthorne needs camera access to scan QR codes for adding partners.",
+        "NSPhotoLibraryUsageDescription": "Hawthorne needs photo library access to save QR codes.",
+        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.yourcompany.hawthorne",
+      "versionCode": 1,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK",
+        "READ_CONTACTS",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      [
+        "expo-background-fetch",
+        {
+          "minimumInterval": 15
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "owner": "your-expo-username",
+    "privacy": "public",
+    "description": "Track your screen time and share progress with accountability partners",
+    "primaryColor": "#007AFF",
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/your-project-id"
     }
   }
 }

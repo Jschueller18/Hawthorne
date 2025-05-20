@@ -19,13 +19,74 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import * as SMS from 'expo-sms';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
+import 'expo-dev-client';
 
-// Remove background task imports as they're not needed for Snack
-// import * as BackgroundFetch from 'expo-background-fetch';
-// import * as TaskManager from 'expo-task-manager';
-// import 'expo-dev-client';
+// Define background task name
+const SCREEN_TIME_TASK = 'SCREEN_TIME_UPDATE_TASK';
 
-// Simplified screen time data function
+// Register background task
+TaskManager.defineTask(SCREEN_TIME_TASK, async () => {
+  try {
+    // Check if we should send an update now
+    const shouldSend = await checkIfUpdateTime();
+    
+    if (shouldSend) {
+      // Get screen time data
+      const screenTimeData = await getScreenTimeData();
+      
+      // Send to partners
+      const result = await sendScreenTimeUpdates(screenTimeData);
+      
+      if (result) {
+        // Save last sent time (no notification)
+        await AsyncStorage.setItem('last_update_sent', new Date().toISOString());
+        return BackgroundFetch.BackgroundFetchResult.NewData;
+      }
+    }
+    
+    return BackgroundFetch.BackgroundFetchResult.NoData;
+  } catch (error) {
+    console.error("Background task error:", error);
+    return BackgroundFetch.BackgroundFetchResult.Failed;
+  }
+});
+
+// Function to check if it's time to send an update
+const checkIfUpdateTime = async () => {
+  // Get the last time an update was sent
+  const lastUpdateString = await AsyncStorage.getItem('last_update_sent');
+  
+  if (lastUpdateString) {
+    const lastUpdate = new Date(lastUpdateString);
+    const now = new Date();
+    
+    // Don't send more than once per day
+    if (lastUpdate.toDateString() === now.toDateString()) {
+      return false;
+    }
+  }
+  
+  // Get the scheduled time
+  const updateTimeString = await AsyncStorage.getItem('update_time') || '20:00';
+  const [scheduledHour, scheduledMinute] = updateTimeString.split(':').map(Number);
+  
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  // Create a window around the scheduled time (±45 minutes)
+  const isCloseToScheduledTime = (
+    (currentHour === scheduledHour && Math.abs(currentMinute - scheduledMinute) <= 45) ||
+    (currentHour === scheduledHour - 1 && currentMinute >= 15 && scheduledMinute <= 45) ||
+    (currentHour === scheduledHour + 1 && currentMinute <= 45 && scheduledMinute >= 15)
+  );
+  
+  return isCloseToScheduledTime;
+};
+
+// Function to get screen time data
 const getScreenTimeData = async () => {
   try {
     const storedData = await AsyncStorage.getItem('mock_screen_time');
@@ -44,11 +105,12 @@ const getScreenTimeData = async () => {
     };
   } catch (error) {
     console.error("Error getting screen time data:", error);
+    Alert.alert('Error', 'Failed to get screen time data');
     return { hours: 0, minutes: 0, appBreakdown: [] };
   }
 };
 
-// Simplified send updates function with better error handling
+// Function to send screen time updates to partners
 const sendScreenTimeUpdates = async (screenTimeData) => {
   try {
     // Check if SMS is available
@@ -108,15 +170,41 @@ const sendScreenTimeUpdates = async (screenTimeData) => {
   }
 };
 
+// Register for background tasks
+const registerBackgroundTask = async () => {
+  try {
+    // Unregister any existing task
+    await BackgroundFetch.unregisterTaskAsync(SCREEN_TIME_TASK).catch(() => null);
+    
+    // Register the new task
+    await BackgroundFetch.registerTaskAsync(SCREEN_TIME_TASK, {
+      minimumInterval: 15 * 60, // 15 minutes minimum
+      stopOnTerminate: false,
+      startOnBoot: true,
+    });
+    
+    console.log("Background task registered for silent updates");
+  } catch (error) {
+    console.error("Background task registration failed:", error);
+    Alert.alert('Error', 'Failed to register background task');
+  }
+};
+
 // Dashboard Screen
 function DashboardScreen() {
   const [screenTime, setScreenTime] = useState({ hours: 3, minutes: 45 });
   const [goal, setGoal] = useState({ hours: 3, minutes: 0 });
   const [updateTime, setUpdateTime] = useState('20:00');
-  const [autoUpdates, setAutoUpdates] = useState(false); // Disabled by default for Snack
+  const [autoUpdates, setAutoUpdates] = useState(true);
   const [lastUpdateSent, setLastUpdateSent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Calculate if over goal
+  const isOverGoal = 
+    (screenTime.hours > goal.hours) || 
+    (screenTime.hours === goal.hours && screenTime.minutes > goal.minutes);
+  
+  // Load data on component mount
   useEffect(() => {
     loadData();
   }, []);
@@ -124,35 +212,70 @@ function DashboardScreen() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [savedGoal, savedTime, lastUpdate] = await Promise.all([
-        AsyncStorage.getItem('screen_time_goal'),
-        AsyncStorage.getItem('mock_screen_time'),
-        AsyncStorage.getItem('last_update_sent')
-      ]);
-
-      if (savedGoal) setGoal(JSON.parse(savedGoal));
-      if (savedTime) setScreenTime(JSON.parse(savedTime));
-      if (lastUpdate) setLastUpdateSent(new Date(lastUpdate));
+      // Load screen time data
+      const data = await getScreenTimeData();
+      setScreenTime(data);
+      
+      // Load goal
+      const savedGoal = await AsyncStorage.getItem('screen_time_goal');
+      if (savedGoal) {
+        setGoal(JSON.parse(savedGoal));
+      }
+      
+      // Load update time
+      const savedTime = await AsyncStorage.getItem('update_time');
+      if (savedTime) {
+        setUpdateTime(savedTime);
+      }
+      
+      // Load auto updates setting
+      const autoUpdatesStr = await AsyncStorage.getItem('auto_updates');
+      if (autoUpdatesStr !== null) {
+        setAutoUpdates(JSON.parse(autoUpdatesStr));
+      }
+      
+      // Load last update time
+      const lastSentStr = await AsyncStorage.getItem('last_update_sent');
+      if (lastSentStr) {
+        setLastUpdateSent(new Date(lastSentStr));
+      }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
       Alert.alert('Error', 'Failed to load data. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Register/unregister background task when settings change
+  useEffect(() => {
+    const updateBackgroundTask = async () => {
+      await AsyncStorage.setItem('update_time', updateTime);
+      await AsyncStorage.setItem('auto_updates', JSON.stringify(autoUpdates));
+      
+      if (autoUpdates) {
+        await registerBackgroundTask();
+      } else {
+        await BackgroundFetch.unregisterTaskAsync(SCREEN_TIME_TASK).catch(() => null);
+      }
+    };
 
+    updateBackgroundTask();
+  }, [updateTime, autoUpdates]);
+  
+  // Function to manually send update
   const sendUpdatesToPartners = async () => {
     try {
-      const screenTimeData = await getScreenTimeData();
-      const success = await sendScreenTimeUpdates(screenTimeData);
+      const result = await sendScreenTimeUpdates(screenTime);
       
-      if (success) {
-        await AsyncStorage.setItem('last_update_sent', new Date().toISOString());
-        setLastUpdateSent(new Date());
+      if (result) {
+        const now = new Date();
+        await AsyncStorage.setItem('last_update_sent', now.toISOString());
+        setLastUpdateSent(now);
       }
     } catch (error) {
-      console.error('Error sending updates:', error);
-      Alert.alert('Error', 'Failed to send updates. Please try again.');
+      console.error("Error sending updates:", error);
+      Alert.alert("Error", "There was a problem sending your update.");
     }
   };
   
@@ -559,6 +682,21 @@ function ProfileScreen() {
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  // Initialize background tasks on app start
+  useEffect(() => {
+    const initializeApp = async () => {
+      // Check for auto-updates setting
+      const autoUpdatesStr = await AsyncStorage.getItem('auto_updates');
+      const autoUpdates = autoUpdatesStr !== null ? JSON.parse(autoUpdatesStr) : true;
+      
+      if (autoUpdates) {
+        await registerBackgroundTask();
+      }
+    };
+    
+    initializeApp();
+  }, []);
+  
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -567,30 +705,22 @@ export default function App() {
             let iconName;
 
             if (route.name === 'Dashboard') {
-              iconName = focused ? 'home' : 'home-outline';
+              iconName = focused ? 'stats-chart' : 'stats-chart-outline';
             } else if (route.name === 'Partners') {
               iconName = focused ? 'people' : 'people-outline';
             } else if (route.name === 'Goals') {
-              iconName = focused ? 'flag' : 'flag-outline';
+              iconName = focused ? 'trophy' : 'trophy-outline';
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person' : 'person-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#6A5ACD',
+          tabBarActiveTintColor: '#007AFF',
           tabBarInactiveTintColor: 'gray',
-          headerStyle: {
-            backgroundColor: '#6A5ACD',
-          },
-          headerTintColor: '#fff',
         })}
       >
-        <Tab.Screen 
-          name="Dashboard" 
-          component={DashboardScreen}
-          options={{ title: 'Hawthorne' }}
-        />
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Partners" component={PartnersScreen} />
         <Tab.Screen name="Goals" component={GoalsScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
