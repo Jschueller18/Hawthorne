@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Hawthorne",
-    "slug": "hawthorne",
+    "name": "Accountabl",
+    "slug": "accountabl",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,13 +16,13 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.hawthorne",
+      "bundleIdentifier": "com.accountabl.app",
       "buildNumber": "1",
       "infoPlist": {
         "UIBackgroundModes": ["fetch"],
-        "NSContactsUsageDescription": "Hawthorne needs access to your contacts to add accountability partners.",
-        "NSCameraUsageDescription": "Hawthorne needs camera access to scan QR codes for adding partners.",
-        "NSPhotoLibraryUsageDescription": "Hawthorne needs photo library access to save QR codes.",
+        "NSContactsUsageDescription": "Accountabl needs access to your contacts to add accountability partners.",
+        "NSCameraUsageDescription": "Accountabl needs camera access to scan QR codes for adding partners.",
+        "NSPhotoLibraryUsageDescription": "Accountabl needs photo library access to save QR codes.",
         "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
       }
     },
@@ -31,7 +31,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourcompany.hawthorne",
+      "package": "com.accountabl.app",
       "versionCode": 1,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
@@ -52,16 +52,16 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "accountabl-app"
       }
     },
-    "owner": "your-expo-username",
+    "owner": "accountabl",
     "privacy": "public",
-    "description": "Track your screen time and share progress with accountability partners",
+    "description": "Track your screen time and share progress with accountability partners. Set daily goals, add accountability partners, and receive automatic updates to stay on track with your digital wellness journey.",
     "primaryColor": "#007AFF",
     "updates": {
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/your-project-id"
+      "url": "https://u.expo.dev/accountabl-app"
     }
   }
 }

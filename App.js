@@ -149,7 +149,7 @@ const sendScreenTimeUpdates = async (screenTimeData) => {
     const isOverGoal = totalMinutes > goalMinutes;
     
     // Create the message
-    const message = `[Hawthorne Update] My screen time today was ${screenTimeData.hours}h ${screenTimeData.minutes}m ${
+    const message = `[Accountabl Update] My screen time today was ${screenTimeData.hours}h ${screenTimeData.minutes}m ${
       isOverGoal ? '(over my goal)' : '(under my goal)'
     }`;
     
